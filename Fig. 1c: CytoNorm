@@ -1,0 +1,159 @@
+# CytoNorm Batch Normalization of CyTOF Data
+# Associated manuscript: BCG vaccination attenuates Schistosoma mansoni-associated rural–urban immune variation 
+# Author: Gyaviira Nkurunungi
+# Required inputs:
+#   metadata.xlsx
+#   input_fcs/*.fcs
+# Metadata format:
+# File                                    Batch    Type
+# sample_ref_batch1.fcs     batch1   Train
+# sample_ref_batch2.fcs     batch2   Train
+# sample_ref_batch3.fcs     batch3   Train
+# sample_ref_batch4.fcs     batch4   Train
+# sample_ref_batch5.fcs     batch5   Train
+# sample_ref_batch6.fcs     batch6   Train
+# sample_ref_batch7.fcs     batch7   Train
+# sample_001_batch1.fcs     batch1   Validation
+# sample_002_batch2.fcs     batch2   Validation
+# .....................
+
+# ---------------------------------------------------------
+# Load required packages
+library(CytoNorm)
+library(flowCore)
+library(dplyr)
+library(openxlsx)
+
+set.seed(1) #reproducibility
+
+# Define input files
+InputData <- "input_fcs"
+setwd(InputData)
+MetadataFile <- "metadata.xlsx"
+# READ METADATA
+metadata <- read.xlsx(MetadataFile)
+metadata$Path <- file.path(InputData, metadata$File)
+# Verify files exist
+stopifnot(all(file.exists(metadata$Path)))
+# Check metadata
+table(metadata$Batch, metadata$Type)
+train_data <- filter(metadata, Type == "Train")
+validation_data <- filter(metadata, Type == "Validation")
+
+# CHECK TRAINING FILES
+cat("Reference files:\n")
+print(train_data$File)
+
+# LOAD ONE FCS (REF) FILE
+ff <- read.FCS(train_data$Path[1])
+colnames(ff)
+pData(parameters(ff))
+
+# CHANNEL SELECTION
+# Ex vivo panel 1
+channels <- colnames(ff)[c(
+  9,
+  19:34,
+  38:45,
+  47,
+  52:56,
+  58:63
+)]
+
+# Verify channels exist
+stopifnot(all(channels %in% colnames(ff)))
+cat(length(channels), "channels selected\n")
+
+# OPTIONAL ARCSINH TRANSFORMATION
+transformList <- flowCore::transformList(
+  channels,
+  arcsinhTransform(a = 0,
+                   b = 1/5,
+                   c = 0)
+)
+
+transformList.reverse <- NULL
+
+# CHECK CHANNEL CONSISTENCY ACROSS REFERENCE FILES
+for(f in train_data$Path){
+  ff.tmp <- read.FCS(f)
+  if(!all(channels %in% colnames(ff.tmp))){
+    stop(
+      paste("Missing channels in:",
+            basename(f))
+    )
+  } 
+}
+cat("All reference files contain selected channels\n")
+
+# BUILD FLOWSOM MODEL
+fsom <- prepareFlowSOM(
+  files = train_data$Path,
+  colsToUse = channels,
+  nCells = 500000,
+  FlowSOM.params = list(
+    xdim = 15,
+    ydim = 15,
+    nClus = 10,
+    scale = FALSE
+  ),
+  transformList = transformList,
+  seed = 1
+)
+
+
+# TEST CLUSTER STABILITY
+cvs <- testCV(
+  fsom,
+  cluster_values = c(5, 10, 15),
+  plot = TRUE,
+  verbose = TRUE
+)
+print(cvs$pctgs)
+
+# TRAIN CYTONORM MODEL
+model <- CytoNorm.train(
+  files = train_data$Path,
+  labels = train_data$Batch,
+  channels = channels,
+  transformList = transformList,
+  FlowSOM.params = list(
+    nCells = 500000,
+    xdim = 15,
+    ydim = 15,
+    nClus = 10,
+    scale = FALSE
+  ),
+  normMethod.train = QuantileNorm.train,
+  normParams = list(
+    nQ = 101,
+    goal = "mean"
+  ),
+  seed = 1,
+  verbose = TRUE
+)
+
+
+# SAVE MODEL
+saveRDS(
+  model,
+  file = "CytoNorm_model.rds"
+)
+# NORMALIZE ALL FILES
+dir.create(
+  "cytonorm_normalized",
+  showWarnings = FALSE
+)
+
+CytoNorm.normalize(
+  model = model,
+  files = metadata$Path,
+  labels = metadata$Batch,
+  transformList = transformList,
+  transformList.reverse = transformList.reverse,
+  normMethod.normalize = QuantileNorm.normalize,
+  outputDir = "cytonorm_normalized",
+  prefix = "Norm_",
+  clean = TRUE,
+  verbose = TRUE
+)
