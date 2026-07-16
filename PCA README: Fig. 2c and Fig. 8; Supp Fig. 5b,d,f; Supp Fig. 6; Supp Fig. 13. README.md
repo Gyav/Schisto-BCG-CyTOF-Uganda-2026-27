@@ -1,10 +1,10 @@
-PCA, PERMANOVA and Principal Curve Analysis
+**PCA, PERMANOVA and Principal Curve Analysis**
 
 This repository contains the R code used to perform principal component analysis (PCA), PERMANOVA testing, and principal curve analysis of PBMC immune phenotype frequencies in:
 
-BCG vaccination attenuates Schistosoma mansoni-associated rural–urban immune variation
+_BCG vaccination attenuates Schistosoma mansoni-associated rural–urban immune variation_
 
-Overview
+**Overview**
 
 The script was used to explore global differences in immune phenotypes between:
 
@@ -13,8 +13,8 @@ The script was used to explore global differences in immune phenotypes between:
 • Rural S. mansoni uninfected (Sm−)
 
 • Urban participants
-
-The workflow performs:
+**
+The workflow performs:**
 
 1. Principal component analysis (PCA) using prcomp
    
