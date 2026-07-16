@@ -18,9 +18,6 @@ library(readxl)
 library(writexl)
 library(ggrepel)
 
-getwd()
-dir<- setwd("~/Documents/POPVAC/CyToF and Aurora/CYTOF ANALYSIS 2021_22/CYTOVAC OMIQ ANALYSES/vaccine responses/volcano")
-
 # ---------------------------------------------------------
 # Input and output files
 input_file <- "B_ex vivo_wk0_setting_age_sex.xlsx"
