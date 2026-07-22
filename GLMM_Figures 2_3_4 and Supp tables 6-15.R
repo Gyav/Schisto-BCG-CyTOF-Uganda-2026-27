@@ -26,9 +26,6 @@ library(readxl)
 library(writexl)
 library(emmeans)
 
-getwd()
-dir<- setwd("~/Documents/POPVAC/CyToF and Aurora/CYTOF ANALYSIS 2021_22/CYTOVAC OMIQ ANALYSES/vaccine responses/ex vivo/glmm results")
-
 # ---------------------------------------------------------
 # Input and output files
 input_file <- "masterdata_cd45.xlsx"
